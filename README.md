@@ -104,3 +104,7 @@ RevampAI is intentionally lightweight for rapid iteration during the AI Tinkerer
 - verify supplier ethical compliance through the Veris sandbox connector,
 - execute mock restock writes to the stateful inventory twin only when verification passes,
 - output both a structured JSON audit log and a Markdown manager summary.
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). See `LICENSE`.
