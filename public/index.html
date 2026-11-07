@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RevampAI Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background:
+          radial-gradient(circle at top, rgba(16, 185, 129, 0.18), transparent 28%),
+          linear-gradient(135deg, #07131f 0%, #0f172a 40%, #111827 100%);
+      }
+      .glass {
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        backdrop-filter: blur(14px);
+      }
+      .status-pill {
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .log-entry {
+        border-left: 3px solid rgba(52, 211, 153, 0.8);
+      }
+      .log-entry.warn {
+        border-left-color: rgba(251, 191, 36, 0.9);
+      }
+      .log-entry.fail {
+        border-left-color: rgba(248, 113, 113, 0.9);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-50 antialiased">
+    <div class="max-w-7xl mx-auto px-4 py-10">
+      <header class="mb-8 flex items-center justify-between gap-4">
+        <div>
+          <p class="text-emerald-400 text-sm uppercase tracking-[0.25em] font-semibold">RevampAI</p>
+          <h1 class="text-3xl font-bold mt-2">Fashion Compliance Control Center</h1>
+        </div>
+        <div class="glass rounded-full px-4 py-2 status-pill text-emerald-300">Live ZooWork + Veris</div>
+      </header>
+
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="glass rounded-2xl p-5">
+          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Agent State</p>
+          <div class="mt-3 flex items-center gap-3">
+            <span id="agent-status-dot" class="h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.8)]"></span>
+            <span id="agent-status" class="text-xl font-semibold">Running</span>
+          </div>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Sandbox</p>
+          <p id="sandbox-mode" class="mt-3 text-xl font-semibold">local-simulated-twin</p>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Verified Suppliers</p>
+          <p id="verified-suppliers" class="mt-3 text-xl font-semibold">0</p>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Restocks Executed</p>
+          <p id="restocks-executed" class="mt-3 text-xl font-semibold">0</p>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 mb-8">
+        <div class="glass rounded-3xl p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-semibold">Batch Fashion Inventory Audit</h2>
+            <button id="run-audit-btn" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition">
+              Trigger Audit
+            </button>
+          </div>
+          <div class="space-y-4 text-sm text-slate-300">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="rounded-xl bg-slate-900/70 p-3">
+                <p class="text-slate-400 uppercase tracking-[0.18em] text-[10px]">Run ID</p>
+                <p id="run-id" class="mt-2 font-medium text-slate-100">Awaiting trigger</p>
+              </div>
+              <div class="rounded-xl bg-slate-900/70 p-3">
+                <p class="text-slate-400 uppercase tracking-[0.18em] text-[10px]">Completed</p>
+                <p id="completed-at" class="mt-2 font-medium text-slate-100">--</p>
+              </div>
+            </div>
+            <div class="rounded-xl bg-slate-900/70 p-3">
+              <p class="text-slate-400 uppercase tracking-[0.18em] text-[10px]">Compliance Notes</p>
+              <p id="compliance-notes" class="mt-2 text-slate-100">
+                No active batch audit has been processed.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass rounded-3xl p-6">
+          <h2 class="text-xl font-semibold mb-4">Live Agent Signals</h2>
+          <ul class="space-y-3" id="signal-list">
+            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Inventory twin initialized</li>
+            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Supplier verifications armed</li>
+            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Compliance scoring ready</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="glass rounded-3xl p-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xl font-semibold">Stateful Audit Log</h2>
+          <span class="status-pill px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300">Stateful Twin</span>
+        </div>
+        <div id="log-container" class="space-y-3 max-h-[520px] overflow-y-auto pr-2"></div>
+      </section>
+    </div>
+
+    <script>
+      const statusNode = document.getElementById('agent-status');
+      const statusDot = document.getElementById('agent-status-dot');
+      const sandboxMode = document.getElementById('sandbox-mode');
+      const verifiedSuppliers = document.getElementById('verified-suppliers');
+      const restocksExecuted = document.getElementById('restocks-executed');
+      const runId = document.getElementById('run-id');
+      const completedAt = document.getElementById('completed-at');
+      const complianceNotes = document.getElementById('compliance-notes');
+      const logContainer = document.getElementById('log-container');
+      const signalList = document.getElementById('signal-list');
+      const runAuditBtn = document.getElementById('run-audit-btn');
+
+      function addLogEntry(message, type = 'info') {
+        const item = document.createElement('div');
+        item.className = `log-entry ${type} rounded-2xl bg-slate-900/75 p-4 text-sm text-slate-200`;
+        item.textContent = message;
+        logContainer.prepend(item);
+      }
+
+      function setStatus(label, tone = 'emerald') {
+        statusNode.textContent = label;
+        statusDot.className = 'h-3 w-3 rounded-full';
+        if (tone === 'emerald') {
+          statusDot.classList.add('bg-emerald-400', 'shadow-[0_0_18px_rgba(52,211,153,0.8)]');
+        } else if (tone === 'amber') {
+          statusDot.classList.add('bg-amber-400', 'shadow-[0_0_18px_rgba(251,191,36,0.8)]');
+        } else {
+          statusDot.classList.add('bg-red-400', 'shadow-[0_0_18px_rgba(248,113,113,0.8)]');
+        }
+      }
+
+      async function loadHealth() {
+        try {
+          const response = await fetch('/api/health');
+          const health = await response.json();
+          if (health.ok) {
+            sandboxMode.textContent = health.sandboxMode;
+            addLogEntry(`Health check ok — ${health.service} on ${health.timestamp}`);
+          }
+        } catch (error) {
+          setStatus('Unavailable', 'red');
+          addLogEntry(`Health check failed: ${error.message}`, 'fail');
+        }
+      }
+
+      async function triggerAudit() {
+        runAuditBtn.disabled = true;
+        runAuditBtn.textContent = 'Running Audit...';
+        setStatus('Auditing', 'amber');
+        addLogEntry('Starting batch fashion inventory audit against stateful Veris twin...', 'warn');
+
+        try {
+          const response = await fetch('/api/run-audit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify([
+              {
+                sku: 'GARMENT-201',
+                fabricType: 'Organic Cotton',
+                carbonFootprintScore: 26,
+                supplierId: 'SUP-ETH-901',
+                restockQty: 18
+              },
+              {
+                sku: 'GARMENT-202',
+                fabricType: 'Recycled Polyester',
+                carbonFootprintScore: 46,
+                supplierId: 'SUP-ETH-902',
+                restockQty: 12
+              },
+              {
+                sku: 'GARMENT-203',
+                fabricType: 'Linen Blend',
+                carbonFootprintScore: 35,
+                supplierId: 'SUP-ETH-904',
+                restockQty: 22
+              }
+            ])
+          });
+
+          const result = await response.json();
+          if (!response.ok || !result.ok) {
+            throw new Error(result.error || 'Audit request failed');
+          }
+
+          const totalVerified = result.metrics.suppliersVerified;
+          const totalRestocks = result.metrics.restocksExecuted;
+          verifiedSuppliers.textContent = String(totalVerified);
+          restocksExecuted.textContent = String(totalRestocks);
+          runId.textContent = result.runId;
+          completedAt.textContent = new Date().toISOString();
+          sandboxMode.textContent = result.sandboxMode;
+
+          const noteParts = [];
+          result.operations.forEach((op) => {
+            const pass = op.supplierVerification.verified && op.restock.executed;
+            const badge = pass ? 'PASS' : 'FAIL';
+            const color = pass ? 'text-emerald-300' : 'text-red-300';
+            noteParts.push(`<span class="${color}">${badge}</span> ${op.sku}`);
+            addLogEntry(
+              `${op.sku} | Supplier ${op.supplierId} | ${op.supplierVerification.verified ? 'verified' : 'not verified'} | restock ${op.restock.executed ? 'executed' : 'blocked'}`,
+              op.supplierVerification.verified && op.restock.executed ? 'info' : 'fail'
+            );
+          });
+
+          complianceNotes.innerHTML = noteParts.join(' · ');
+          signalList.innerHTML = `
+            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Supplier verification check: ${result.metrics.suppliersVerified}/${result.metrics.totalProcessed}</li>
+            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Inventory writes accepted: ${result.metrics.restocksExecuted}</li>
+            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Compliance confidence: ${result.metrics.errors === 0 ? 'High' : 'Needs review'}</li>
+          `;
+          setStatus('Healthy', 'emerald');
+          addLogEntry(`Audit completed successfully: ${result.runId}`, 'info');
+        } catch (error) {
+          setStatus('Failed', 'red');
+          addLogEntry(`Audit failed: ${error.message}`, 'fail');
+          complianceNotes.textContent = 'The batch failed compliance validation. Review the stateful log and supplier checks.';
+        } finally {
+          runAuditBtn.disabled = false;
+          runAuditBtn.textContent = 'Trigger Audit';
+        }
+      }
+
+      runAuditBtn.addEventListener('click', triggerAudit);
+      loadHealth();
+      addLogEntry('Dashboard initialized. Awaiting first audit pass.', 'info');
+    </script>
+  </body>
+</html>
