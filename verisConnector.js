@@ -4,12 +4,20 @@ const config = require("./config");
 
 const sandboxState = new Map();
 
+function getRuntimeConfig() {
+  return {
+    apiBase: process.env.VERIS_API_BASE || config.veris.apiBase || "",
+    sandboxKey: process.env.VERIS_SANDBOX_KEY || config.veris.sandboxKey || ""
+  };
+}
+
 function buildClient() {
+  const runtimeConfig = getRuntimeConfig();
   return axios.create({
-    baseURL: config.veris.apiBase,
+    baseURL: runtimeConfig.apiBase,
     timeout: 10_000,
     headers: {
-      Authorization: `Bearer ${config.veris.sandboxKey}`,
+      Authorization: `Bearer ${runtimeConfig.sandboxKey}`,
       "Content-Type": "application/json"
     }
   });
@@ -17,7 +25,8 @@ function buildClient() {
 
 async function initializeFashionSandbox() {
   const fallbackSandboxId = `fashion-sbx-${randomUUID()}`;
-  const hasRemoteConfig = Boolean(config.veris.apiBase && config.veris.sandboxKey);
+  const runtimeConfig = getRuntimeConfig();
+  const hasRemoteConfig = Boolean(runtimeConfig.apiBase && runtimeConfig.sandboxKey);
 
   let sandboxId = fallbackSandboxId;
   let mode = "local-simulated-twin";
