@@ -5,3 +5,5 @@ npm-debug.log*
 dist/
 coverage/
 .DS_Store
+render-deployment.json
+zoowork-api-check.json

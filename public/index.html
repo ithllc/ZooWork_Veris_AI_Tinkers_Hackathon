@@ -1,243 +1,241 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RevampAI Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body {
-        background:
-          radial-gradient(circle at top, rgba(16, 185, 129, 0.18), transparent 28%),
-          linear-gradient(135deg, #07131f 0%, #0f172a 40%, #111827 100%);
-      }
-      .glass {
-        background: rgba(15, 23, 42, 0.82);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        backdrop-filter: blur(14px);
-      }
-      .status-pill {
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      .log-entry {
-        border-left: 3px solid rgba(52, 211, 153, 0.8);
-      }
-      .log-entry.warn {
-        border-left-color: rgba(251, 191, 36, 0.9);
-      }
-      .log-entry.fail {
-        border-left-color: rgba(248, 113, 113, 0.9);
-      }
-    </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>RevampAI · Fashion evidence, reviewed</title>
+    <link rel="stylesheet" href="/style.css" />
   </head>
-  <body class="min-h-screen text-slate-50 antialiased">
-    <div class="max-w-7xl mx-auto px-4 py-10">
-      <header class="mb-8 flex items-center justify-between gap-4">
-        <div>
-          <p class="text-emerald-400 text-sm uppercase tracking-[0.25em] font-semibold">RevampAI</p>
-          <h1 class="text-3xl font-bold mt-2">Fashion Compliance Control Center</h1>
-        </div>
-        <div class="glass rounded-full px-4 py-2 status-pill text-emerald-300">Live ZooWork + Veris</div>
+  <body>
+    <main>
+      <header>
+        <a class="brand" href="/"
+          >revamp<span>ai</span><small>FASHION × AGENTS</small></a
+        >
+        <nav>
+          <a href="#connect">Connect your agent</a
+          ><a
+            href="https://github.com/ithllc/ZooWork_Veris_AI_Tinkers_Hackathon"
+            >GitHub ↗</a
+          >
+        </nav>
       </header>
-
-      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div class="glass rounded-2xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Agent State</p>
-          <div class="mt-3 flex items-center gap-3">
-            <span id="agent-status-dot" class="h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.8)]"></span>
-            <span id="agent-status" class="text-xl font-semibold">Running</span>
-          </div>
-        </div>
-        <div class="glass rounded-2xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Sandbox</p>
-          <p id="sandbox-mode" class="mt-3 text-xl font-semibold">local-simulated-twin</p>
-        </div>
-        <div class="glass rounded-2xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Verified Suppliers</p>
-          <p id="verified-suppliers" class="mt-3 text-xl font-semibold">0</p>
-        </div>
-        <div class="glass rounded-2xl p-5">
-          <p class="text-slate-400 text-xs uppercase tracking-[0.2em]">Restocks Executed</p>
-          <p id="restocks-executed" class="mt-3 text-xl font-semibold">0</p>
+      <section class="hero">
+        <p class="eyebrow">AI TINKERERS · FASHION TRACK</p>
+        <h1>Better sourcing starts<br />with better <em>evidence.</em></h1>
+        <p class="intro">
+          Bring your garment records and supplier claims. A real ZooWork agent
+          reviews what’s supported, what’s missing, and what needs a human
+          decision.
+        </p>
+        <div class="badges">
+          <span id="zoo-status">Checking ZooWork…</span
+          ><span id="data-status">Checking ZooData…</span
+          ><span>Open source · AGPL-3.0</span>
         </div>
       </section>
-
-      <section class="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 mb-8">
-        <div class="glass rounded-3xl p-6">
-          <div class="flex items-center justify-between mb-5">
-            <h2 class="text-xl font-semibold">Batch Fashion Inventory Audit</h2>
-            <button id="run-audit-btn" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 transition">
-              Trigger Audit
+      <div class="workspace">
+        <section class="panel">
+          <div class="section-title">
+            <span class="number">01</span>
+            <div>
+              <h2>Build your review</h2>
+              <p>Use the sample or paste your own JSON, up to 10 garments.</p>
+            </div>
+          </div>
+          <label for="items">Garment records & supplier evidence</label
+          ><textarea
+            id="items"
+            rows="19"
+            spellcheck="false"
+            aria-describedby="input-help"
+          ></textarea>
+          <p class="hint" id="input-help">
+            Carbon scores are user-supplied, from 0–100. Evidence can contain
+            certificate excerpts, issuer, expiry, scope, and provenance. Do not
+            submit sensitive personal data.
+          </p>
+          <label for="market-query"
+            >ZooData market context
+            <span class="optional">optional</span></label
+          >
+          <div class="search-row">
+            <input
+              id="market-query"
+              placeholder="e.g. organic cotton t-shirt"
+            /><button type="button" id="search" class="secondary">
+              Search market
             </button>
           </div>
-          <div class="space-y-4 text-sm text-slate-300">
-            <div class="grid grid-cols-2 gap-3">
-              <div class="rounded-xl bg-slate-900/70 p-3">
-                <p class="text-slate-400 uppercase tracking-[0.18em] text-[10px]">Run ID</p>
-                <p id="run-id" class="mt-2 font-medium text-slate-100">Awaiting trigger</p>
-              </div>
-              <div class="rounded-xl bg-slate-900/70 p-3">
-                <p class="text-slate-400 uppercase tracking-[0.18em] text-[10px]">Completed</p>
-                <p id="completed-at" class="mt-2 font-medium text-slate-100">--</p>
-              </div>
-            </div>
-            <div class="rounded-xl bg-slate-900/70 p-3">
-              <p class="text-slate-400 uppercase tracking-[0.18em] text-[10px]">Compliance Notes</p>
-              <p id="compliance-notes" class="mt-2 text-slate-100">
-                No active batch audit has been processed.
+          <p class="hint">
+            A search uses ZooData credits. Include this query in your audit to
+            give the agent market context. Listings do not prove certification.
+          </p>
+          <div id="market-results" aria-live="polite"></div>
+          <button type="button" id="run" class="primary">
+            Review with ZooWork <span>↗</span>
+          </button>
+          <p class="hint">
+            Runs a live AI task using the demo’s limited shared allowance. No
+            inventory changes are made.
+          </p>
+        </section>
+        <section class="panel results">
+          <div class="section-title">
+            <span class="number">02</span>
+            <div>
+              <h2>Your evidence review</h2>
+              <p id="progress" role="status" aria-live="polite">
+                Ready when you are.
               </p>
             </div>
           </div>
+          <div id="empty">
+            <div class="asterisk">✳</div>
+            <h3>Claims deserve a closer look.</h3>
+            <p>
+              Your report will show sourcing concerns, missing evidence, and
+              restock recommendations for human review.
+            </p>
+          </div>
+          <div id="results" hidden>
+            <div id="metrics" class="metrics"></div>
+            <div id="decisions"></div>
+            <h3>Manager report</h3>
+            <pre id="report"></pre>
+            <button id="download" class="secondary">Download report</button>
+            <p id="provenance" class="hint"></p>
+          </div>
+          <p id="error" class="error" role="alert"></p>
+          <div class="boundary">
+            <strong>Review, then decide.</strong>
+            <p>
+              AI analysis is advisory. This app does not certify suppliers,
+              validate legal compliance, or execute inventory writes. The old
+              simulated approval path has been removed.
+            </p>
+          </div>
+        </section>
+      </div>
+      <section class="panel connect" id="chat-section">
+        <div>
+          <p class="eyebrow">TALK IT THROUGH</p>
+          <h2>Chat with your fashion agent</h2>
+          <p>
+            Ask about the garments and evidence in your review. Each reply runs
+            through ZooWork with your recent conversation.
+          </p>
+          <div
+            id="chat-log"
+            class="chat-log"
+            role="log"
+            aria-live="polite"
+          ></div>
+          <label for="chat-input">Your question</label
+          ><textarea
+            id="chat-input"
+            rows="3"
+            maxlength="2000"
+            placeholder="What should I request from this supplier before restocking?"
+          ></textarea>
+          <div class="search-row">
+            <button id="send-chat" class="secondary">Send to agent</button
+            ><button id="voice" class="secondary">Speak</button
+            ><label class="speech-option"
+              ><input type="checkbox" id="read-aloud" /> Read replies
+              aloud</label
+            >
+          </div>
+          <p id="chat-status" class="hint" role="status"></p>
+          <p class="hint">
+            Voice availability depends on your browser. Speech recognition may
+            use your browser provider’s service. You can always type.
+          </p>
         </div>
-
-        <div class="glass rounded-3xl p-6">
-          <h2 class="text-xl font-semibold mb-4">Live Agent Signals</h2>
-          <ul class="space-y-3" id="signal-list">
-            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Inventory twin initialized</li>
-            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Supplier verifications armed</li>
-            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Compliance scoring ready</li>
-          </ul>
+        <div>
+          <p class="eyebrow">GET ON WITH YOUR DAY</p>
+          <h2>Messages when you’re busy</h2>
+          <p>
+            Sign up to save completed replies to your inbox. Enable browser
+            notifications if you’d like a nudge when a review or reply is ready.
+          </p>
+          <div id="auth-form">
+            <label for="username">Username</label
+            ><input
+              id="username"
+              autocomplete="username"
+              minlength="3"
+              maxlength="40"
+              placeholder="3–40 letters, numbers, _ or -"
+            /><label for="password">Password</label
+            ><input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              minlength="12"
+              maxlength="128"
+              placeholder="At least 12 characters"
+            />
+            <div class="search-row">
+              <button id="signup" class="secondary">Sign up</button
+              ><button id="login" class="secondary">Sign in</button>
+            </div>
+            <p class="hint">
+              Save your password securely. Email and password recovery are not
+              available in this hackathon demo.
+            </p>
+          </div>
+          <div id="signed-in" hidden>
+            <p id="account-name"></p>
+            <div class="search-row">
+              <button id="enable-notifications" class="secondary">
+                Notify me</button
+              ><button id="disable-notifications" class="secondary">
+                Turn off</button
+              ><button id="logout" class="secondary">Sign out</button>
+            </div>
+            <button id="refresh-inbox" class="secondary">Refresh inbox</button>
+            <div id="inbox" aria-live="polite"></div>
+          </div>
+          <p id="account-status" class="hint" role="status"></p>
         </div>
       </section>
-
-      <section class="glass rounded-3xl p-6">
-        <div class="flex items-center justify-between mb-5">
-          <h2 class="text-xl font-semibold">Stateful Audit Log</h2>
-          <span class="status-pill px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300">Stateful Twin</span>
+      <section id="connect" class="panel connect">
+        <div>
+          <p class="eyebrow">BRING YOUR OWN ASSISTANT</p>
+          <h2>Your workflow. Your agent.</h2>
+          <p>
+            Use Codex, Claude Code, OpenCode, or another MCP client to submit
+            garments and retrieve reports. A2A clients can discover RevampAI and
+            exchange structured requests.
+          </p>
+          <a href="/docs/agents">Connection instructions & examples ↗</a>
         </div>
-        <div id="log-container" class="space-y-3 max-h-[520px] overflow-y-auto pr-2"></div>
+        <div>
+          <button id="get-token" class="secondary">
+            Get my agent connection token
+          </button>
+          <p class="hint">
+            Token expires after 24 hours and grants access to your own demo
+            jobs. Keep it private. Provider keys remain on the server.
+          </p>
+          <textarea
+            id="connection"
+            rows="7"
+            readonly
+            hidden
+            aria-label="Agent connection configuration"
+          ></textarea
+          ><a href="/.well-known/agent-card.json">A2A agent card ↗</a>
+        </div>
       </section>
-    </div>
-
-    <script>
-      const statusNode = document.getElementById('agent-status');
-      const statusDot = document.getElementById('agent-status-dot');
-      const sandboxMode = document.getElementById('sandbox-mode');
-      const verifiedSuppliers = document.getElementById('verified-suppliers');
-      const restocksExecuted = document.getElementById('restocks-executed');
-      const runId = document.getElementById('run-id');
-      const completedAt = document.getElementById('completed-at');
-      const complianceNotes = document.getElementById('compliance-notes');
-      const logContainer = document.getElementById('log-container');
-      const signalList = document.getElementById('signal-list');
-      const runAuditBtn = document.getElementById('run-audit-btn');
-
-      function addLogEntry(message, type = 'info') {
-        const item = document.createElement('div');
-        item.className = `log-entry ${type} rounded-2xl bg-slate-900/75 p-4 text-sm text-slate-200`;
-        item.textContent = message;
-        logContainer.prepend(item);
-      }
-
-      function setStatus(label, tone = 'emerald') {
-        statusNode.textContent = label;
-        statusDot.className = 'h-3 w-3 rounded-full';
-        if (tone === 'emerald') {
-          statusDot.classList.add('bg-emerald-400', 'shadow-[0_0_18px_rgba(52,211,153,0.8)]');
-        } else if (tone === 'amber') {
-          statusDot.classList.add('bg-amber-400', 'shadow-[0_0_18px_rgba(251,191,36,0.8)]');
-        } else {
-          statusDot.classList.add('bg-red-400', 'shadow-[0_0_18px_rgba(248,113,113,0.8)]');
-        }
-      }
-
-      async function loadHealth() {
-        try {
-          const response = await fetch('/api/health');
-          const health = await response.json();
-          if (health.ok) {
-            sandboxMode.textContent = health.sandboxMode;
-            addLogEntry(`Health check ok — ${health.service} on ${health.timestamp}`);
-          }
-        } catch (error) {
-          setStatus('Unavailable', 'red');
-          addLogEntry(`Health check failed: ${error.message}`, 'fail');
-        }
-      }
-
-      async function triggerAudit() {
-        runAuditBtn.disabled = true;
-        runAuditBtn.textContent = 'Running Audit...';
-        setStatus('Auditing', 'amber');
-        addLogEntry('Starting batch fashion inventory audit against stateful Veris twin...', 'warn');
-
-        try {
-          const response = await fetch('/api/run-audit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify([
-              {
-                sku: 'GARMENT-201',
-                fabricType: 'Organic Cotton',
-                carbonFootprintScore: 26,
-                supplierId: 'SUP-ETH-901',
-                restockQty: 18
-              },
-              {
-                sku: 'GARMENT-202',
-                fabricType: 'Recycled Polyester',
-                carbonFootprintScore: 46,
-                supplierId: 'SUP-ETH-902',
-                restockQty: 12
-              },
-              {
-                sku: 'GARMENT-203',
-                fabricType: 'Linen Blend',
-                carbonFootprintScore: 35,
-                supplierId: 'SUP-ETH-904',
-                restockQty: 22
-              }
-            ])
-          });
-
-          const result = await response.json();
-          if (!response.ok || !result.ok) {
-            throw new Error(result.error || 'Audit request failed');
-          }
-
-          const totalVerified = result.metrics.suppliersVerified;
-          const totalRestocks = result.metrics.restocksExecuted;
-          verifiedSuppliers.textContent = String(totalVerified);
-          restocksExecuted.textContent = String(totalRestocks);
-          runId.textContent = result.runId;
-          completedAt.textContent = new Date().toISOString();
-          sandboxMode.textContent = result.sandboxMode;
-
-          const noteParts = [];
-          result.operations.forEach((op) => {
-            const pass = op.supplierVerification.verified && op.restock.executed;
-            const badge = pass ? 'PASS' : 'FAIL';
-            const color = pass ? 'text-emerald-300' : 'text-red-300';
-            noteParts.push(`<span class="${color}">${badge}</span> ${op.sku}`);
-            addLogEntry(
-              `${op.sku} | Supplier ${op.supplierId} | ${op.supplierVerification.verified ? 'verified' : 'not verified'} | restock ${op.restock.executed ? 'executed' : 'blocked'}`,
-              op.supplierVerification.verified && op.restock.executed ? 'info' : 'fail'
-            );
-          });
-
-          complianceNotes.innerHTML = noteParts.join(' · ');
-          signalList.innerHTML = `
-            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Supplier verification check: ${result.metrics.suppliersVerified}/${result.metrics.totalProcessed}</li>
-            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Inventory writes accepted: ${result.metrics.restocksExecuted}</li>
-            <li class="rounded-xl bg-slate-900/70 p-3 text-sm text-slate-300">Compliance confidence: ${result.metrics.errors === 0 ? 'High' : 'Needs review'}</li>
-          `;
-          setStatus('Healthy', 'emerald');
-          addLogEntry(`Audit completed successfully: ${result.runId}`, 'info');
-        } catch (error) {
-          setStatus('Failed', 'red');
-          addLogEntry(`Audit failed: ${error.message}`, 'fail');
-          complianceNotes.textContent = 'The batch failed compliance validation. Review the stateful log and supplier checks.';
-        } finally {
-          runAuditBtn.disabled = false;
-          runAuditBtn.textContent = 'Trigger Audit';
-        }
-      }
-
-      runAuditBtn.addEventListener('click', triggerAudit);
-      loadHealth();
-      addLogEntry('Dashboard initialized. Awaiting first audit pass.', 'info');
-    </script>
+      <footer>
+        <span>Made for conversations between fashion and technology.</span
+        ><a href="https://github.com/ithllc/ZooWork_Veris_AI_Tinkers_Hackathon"
+          >Explore the open-source project ↗</a
+        >
+      </footer>
+    </main>
+    <script src="/app.js" defer></script>
   </body>
 </html>

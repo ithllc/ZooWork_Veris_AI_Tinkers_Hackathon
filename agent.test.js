@@ -1,135 +1,180 @@
-const axios = require('axios');
 const {
-  initializeFashionSandbox,
-  writeInventoryRow,
-  readInventoryRow,
-  setErrorInjection,
-  simulateSupplierVerification,
-  simulateMaterialCertificationCheck
-} = require('./verisConnector');
-const { runFashionOperations } = require('./agent');
-
-jest.mock('axios');
-
-describe('Veris connector and ZooWork agent', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    process.env.VERIS_API_BASE = 'https://mock-veris.example.com';
-    process.env.VERIS_SANDBOX_KEY = 'mock-key-123';
-  });
-
-  test('initializeFashionSandbox() successfully connects to the Veris stateful twin endpoint', async () => {
-    axios.create.mockReturnValue({
-      post: jest.fn().mockResolvedValue({
-        data: { sandboxId: 'mock-sandbox-42' }
-      })
+  runFashionOperations,
+  auditInputSchema,
+  parseReview,
+} = require("./agent");
+jest.mock("web-push", () => ({
+  setVapidDetails: jest.fn(),
+  sendNotification: jest.fn(),
+}));
+const { createAuditService } = require("./service");
+const { issueToken, verifyToken } = require("./access");
+const { searchFashionMarket } = require("./zooData");
+const item = {
+  sku: "TEE-1",
+  fabricType: "Cotton",
+  supplierId: "SUP-1",
+  carbonFootprintScore: 22,
+  restockQty: 10,
+};
+function mockClient(outcome = "succeeded", text) {
+  const review =
+    text ||
+    JSON.stringify({
+      summary: "Evidence is missing.",
+      items: [
+        {
+          sku: "TEE-1",
+          decision: "hold",
+          rationale: "No certificate.",
+          missingEvidence: ["Certificate"],
+        },
+      ],
     });
-
-    const result = await initializeFashionSandbox();
-
-    expect(axios.create).toHaveBeenCalledWith(
+  return {
+    createAgent: jest.fn().mockResolvedValue({ agent_id: "agt_test" }),
+    startAgent: jest.fn(),
+    waitUntilRunning: jest.fn(),
+    createSession: jest.fn().mockResolvedValue({ session_id: "session_test" }),
+    postEvents: jest.fn().mockResolvedValue({ events: [{ accepted: true }] }),
+    streamEvents: async function* () {
+      yield { text: review };
+      yield { done: true, outcome };
+    },
+    stopAgent: jest.fn(),
+    deleteAgent: jest.fn(),
+  };
+}
+const sdk = {
+  assistantText: (e) => e.text || "",
+  isRunFinished: (e) => e.done,
+  runOutcome: (e) => e.outcome,
+};
+test("live path consumes agent response and never invents verification or restock", async () => {
+  const client = mockClient();
+  const r = await runFashionOperations({ items: [item] }, { client, sdk });
+  expect(r.auditLog.provider).toBe("ZooWork");
+  expect(r.auditLog.operations[0].decision).toBe("hold");
+  expect(r.auditLog.metrics.restocksExecuted).toBe(0);
+  expect(client.postEvents).toHaveBeenCalledWith(
+    "agt_test",
+    "session_test",
+    expect.arrayContaining([
       expect.objectContaining({
-        baseURL: 'https://mock-veris.example.com',
-        timeout: 10000,
-        headers: expect.objectContaining({
-          Authorization: 'Bearer mock-key-123',
-          'Content-Type': 'application/json'
-        })
-      })
-    );
-
-    expect(result).toEqual(
-      expect.objectContaining({
-        sandboxId: 'mock-sandbox-42',
-        twinType: 'fashion-dependency-twin',
-        stateful: true
-      })
-    );
+        type: "user.message",
+        idempotency_key: expect.any(String),
+      }),
+    ]),
+  );
+  expect(client.stopAgent).toHaveBeenCalled();
+  expect(client.deleteAgent).toHaveBeenCalled();
+});
+test("failed run interrupts, cleans up and fails without simulated output", async () => {
+  const client = mockClient("failed");
+  await expect(
+    runFashionOperations({ items: [item] }, { client, sdk }),
+  ).rejects.toThrow("did not succeed");
+  expect(client.postEvents.mock.calls[1][2][0].type).toBe("user.interrupt");
+  expect(client.stopAgent).toHaveBeenCalled();
+});
+test("unaccepted message fails and cleans up", async () => {
+  const client = mockClient();
+  client.postEvents.mockResolvedValue({ events: [{ accepted: false }] });
+  await expect(
+    runFashionOperations({ items: [item] }, { client, sdk }),
+  ).rejects.toThrow("did not accept");
+  expect(client.deleteAgent).toHaveBeenCalled();
+});
+test("invalid output and missing SKU cannot become approvals", () => {
+  expect(() => parseReview('{"summary":"ok","items":[]}', [item])).toThrow();
+  expect(() =>
+    parseReview(
+      JSON.stringify({
+        summary: "ok",
+        items: [
+          {
+            sku: "TEE-1",
+            decision: "approved",
+            rationale: "ok",
+            missingEvidence: [],
+          },
+        ],
+      }),
+      [item],
+    ),
+  ).toThrow();
+});
+test("invalid and duplicate records rejected", () => {
+  expect(() =>
+    auditInputSchema.parse({ items: [{ ...item, restockQty: -1 }] }),
+  ).toThrow();
+  expect(() => auditInputSchema.parse({ items: [item, item] })).toThrow();
+  expect(() => auditInputSchema.parse({ items: [] })).toThrow();
+});
+test("visitor tokens reject tampering", () => {
+  const token = issueToken();
+  expect(verifyToken(token)).toBeTruthy();
+  expect(verifyToken(token + "x")).toBeNull();
+  expect(verifyToken("bad")).toBeNull();
+});
+test("audit reports are isolated by visitor", async () => {
+  const service = createAuditService({
+    run: async () => ({
+      auditLog: { provider: "ZooWork" },
+      markdownReport: "report",
+    }),
   });
-
-  test('a valid garment SKU and sustainable material certification pass the compliance check and execute a database write', async () => {
-    const sandbox = await initializeFashionSandbox();
-
-    const writeResult = writeInventoryRow(sandbox.sandboxId, {
-      sku: 'GARMENT-VALID-001',
-      fabricType: 'Organic Cotton',
-      carbonFootprintScore: 24,
-      supplierId: 'SUP-ETH-901',
-      quantity: 18,
-      transactionType: 'restock'
+  const job = service.start("owner-a", { items: [item] });
+  expect(() => service.read("owner-b", job.id)).toThrow("not found");
+  await new Promise(setImmediate);
+  expect(service.read("owner-a", job.id).status).toBe("completed");
+});
+test("ZooData uses authenticated documented search and preserves source provenance", async () => {
+  const fetch = jest
+    .fn()
+    .mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: [{ asin: "B0D1XD1ZV3", title: "Cotton shirt", price: 25 }],
+      }),
     });
-
-    const verification = await simulateSupplierVerification(sandbox.sandboxId, {
-      supplierId: 'SUP-ETH-901',
-      certType: 'ethical-compliance'
-    });
-
-    const certification = await simulateMaterialCertificationCheck(sandbox.sandboxId, {
-      sku: 'GARMENT-VALID-001',
-      reportedComposition: 'organic-cotton-100%'
-    });
-
-    const persistedRow = readInventoryRow(sandbox.sandboxId, 'GARMENT-VALID-001');
-
-    expect(writeResult.sku).toBe('GARMENT-VALID-001');
-    expect(verification.verified).toBe(true);
-    expect(certification.certified).toBe(true);
-    expect(persistedRow.quantity).toBe(18);
-    expect(persistedRow.transactionType).toBe('restock');
+  const r = await searchFashionMarket("cotton shirt", {
+    apiKey: "test",
+    fetch,
   });
-
-  test('an invalid supplier certificate or timeout triggers the Veris error injection fallback routine safely', async () => {
-    const sandbox = await initializeFashionSandbox();
-
-    setErrorInjection(sandbox.sandboxId, {
-      supplierTimeout: true,
-      invalidMaterialClaim: true
-    });
-
-    await expect(
-      simulateSupplierVerification(sandbox.sandboxId, { supplierId: 'SUP-ETH-999' })
-    ).rejects.toMatchObject({ code: 'ETIMEDOUT' });
-
-    await expect(
-      simulateMaterialCertificationCheck(sandbox.sandboxId, {
-        sku: 'GARMENT-BAD-001',
-        reportedComposition: 'synthetic-mix-unknown'
-      })
-    ).rejects.toMatchObject({ code: 'INVALID_MATERIAL_CLAIM' });
-
-    const state = setErrorInjection(sandbox.sandboxId, {
-      supplierTimeout: false,
-      invalidMaterialClaim: false
-    });
-
-    expect(state).toEqual({
-      supplierTimeout: false,
-      invalidMaterialClaim: false
-    });
-  });
-
-  test('runFashionOperations() performs a complete supplier verification and restock cycle', async () => {
-    const { auditLog, markdownReport } = await runFashionOperations([
-      {
-        sku: 'GARMENT-AUDIT-001',
-        fabricType: 'Organic Cotton',
-        carbonFootprintScore: 24,
-        supplierId: 'SUP-ETH-901',
-        restockQty: 18
-      },
-      {
-        sku: 'GARMENT-AUDIT-002',
-        fabricType: 'Recycled Polyester',
-        carbonFootprintScore: 42,
-        supplierId: 'SUP-ETH-902',
-        restockQty: 12
-      }
-    ]);
-
-    expect(auditLog.metrics.totalProcessed).toBe(2);
-    expect(auditLog.metrics.suppliersVerified).toBe(2);
-    expect(auditLog.metrics.restocksExecuted).toBe(2);
-    expect(markdownReport).toContain('RevampAI Compliance Summary');
-    expect(markdownReport).toContain('GARMENT-AUDIT-001');
-  });
+  expect(fetch.mock.calls[0][0]).toBe(
+    "https://api.zoodata.ai/openapi/v2/products/search",
+  );
+  expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer test");
+  expect(r.products[0].sourceUrl).toContain("B0D1XD1ZV3");
+});
+test("ZooData errors never return fake products", async () => {
+  await expect(
+    searchFashionMarket("cotton shirt", {
+      apiKey: "test",
+      fetch: async () => ({ ok: false, status: 401 }),
+    }),
+  ).rejects.toThrow("401");
+});
+test("messaging credentials require strong passwords and safe usernames", () => {
+  const { credentials } = require("./accounts");
+  expect(() =>
+    credentials.parse({ username: "user", password: "short" }),
+  ).toThrow();
+  expect(() =>
+    credentials.parse({
+      username: "<script>",
+      password: "long-enough-password",
+    }),
+  ).toThrow();
+});
+test("push subscriptions cannot target arbitrary network endpoints", () => {
+  const { validPushEndpoint } = require("./notifications");
+  expect(validPushEndpoint("https://fcm.googleapis.com/fcm/send/test")).toBe(
+    true,
+  );
+  expect(validPushEndpoint("https://127.0.0.1/metadata")).toBe(false);
+  expect(validPushEndpoint("https://evil.test/")).toBe(false);
+  expect(validPushEndpoint("http://fcm.googleapis.com/a")).toBe(false);
 });
